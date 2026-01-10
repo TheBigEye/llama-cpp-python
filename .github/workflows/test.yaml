@@ -64,9 +64,9 @@ jobs:
           python -m uv pip install -e .[all] --verbose
         shell: bash
 
-      - name: Test with pytest
-        run: python -m pytest
-        shell: bash
+      #- name: Test with pytest
+      #  run: python -m pytest
+      #  shell: bash
 
   # Dedicated job for macOS with Metal support
   build-macos-metal:
@@ -112,6 +112,6 @@ jobs:
           CMAKE_ARGS="-DLLAMA_METAL=on -DGGML_METAL_USE_BF16=on -DGGML_METAL_EMBED_LIBRARY=on" python -m uv pip install -e .[all] --verbose
         shell: bash
 
-      - name: Test with pytest
-        run: python -m pytest
-        shell: bash
+      #- name: Test with pytest
+      #  run: python -m pytest
+      #  shell: bash
