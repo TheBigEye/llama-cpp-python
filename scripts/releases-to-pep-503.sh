@@ -1,65 +1,120 @@
-#!/usr/bin/env bash
-set -euo pipefail
-OUT_ROOT="${1:-}"
-TAG_REGEX="${2:-}"
-if [ -z "$OUT_ROOT" ] || [ -z "$TAG_REGEX" ]; then
-  exit 0
+#!/bin/bash
+
+set -e
+
+if [ "$#" -lt 2 ]; then
+  echo "Usage: $0 <releases.json> <output_dir>"
+  exit 1
 fi
-RELEASES_FILE="all_releases.txt"
-mkdir -p "$OUT_ROOT"
-mkdir -p index
-touch index/.nojekyll
+
+RELEASES_FILE="$1"
+OUTPUT_DIR="$2"
+
 if [ ! -f "$RELEASES_FILE" ]; then
-  cat > "$OUT_ROOT/index.html" <<'HTML'
-<!doctype html>
-<html><head><meta charset="utf-8"><title>Index</title></head><body><h1>Index</h1><p>No releases data available.</p></body></html>
-HTML
-  exit 0
+  echo "Error: Releases file not found: $RELEASES_FILE"
+  exit 1
 fi
-RELEASE_TAGS="$(jq -r '.[] | select(.tag_name | test("'"$TAG_REGEX"'")) | .tag_name' "$RELEASES_FILE" 2>/dev/null || true)"
-if [ -z "$RELEASE_TAGS" ]; then
-  mkdir -p "$OUT_ROOT"
-  cat > "$OUT_ROOT/index.html" <<'HTML'
-<!doctype html>
-<html><head><meta charset="utf-8"><title>Index</title></head><body><h1>Index</h1><p class="empty">No wheel files found for this category.</p></body></html>
-HTML
-  exit 0
-fi
-FOUND=0
-while IFS= read -r TAG; do
-  ASSETS="$(jq -r --arg TAG "$TAG" '.[] | select(.tag_name==$TAG) | .assets[]? | select(.name|endswith(".whl")) | "\(.browser_download_url)|\(.name)"' "$RELEASES_FILE" 2>/dev/null || true)"
-  if [ -z "$ASSETS" ]; then
-    continue
-  fi
-  while IFS="|" read -r URL NAME; do
-    PACKAGE="$(echo "$NAME" | sed -E 's/-[0-9].*//')"
-    PACKAGE_DIR="$OUT_ROOT/$PACKAGE"
-    mkdir -p "$PACKAGE_DIR"
-    WHEEL_PATH="$PACKAGE_DIR/$NAME"
-    if [ ! -f "$WHEEL_PATH" ]; then
-      curl -sSL "$URL" -o "$WHEEL_PATH" || rm -f "$WHEEL_PATH" || true
+
+mkdir -p "$OUTPUT_DIR"
+
+normalize_name() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[-_.]\+/-/g'
+}
+
+packages=$(jq -r '[.[] | .assets[] | .name | select(endswith(".whl"))] | unique | .[]' "$RELEASES_FILE" | sed 's/-[0-9].*//' | sort -u)
+
+cat > "$OUTPUT_DIR/index.html" << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Simple Index</title>
+</head>
+<body>
+<h1>Simple Index</h1>
+EOF
+
+# Para cada paquete único
+for package in $packages; do
+  normalized=$(normalize_name "$package")
+  
+  echo "  <a href=\"$normalized/\">$normalized</a><br>" >> "$OUTPUT_DIR/index.html"
+  
+  mkdir -p "$OUTPUT_DIR/$normalized"
+  
+  cat > "$OUTPUT_DIR/$normalized/index.html" << EOF
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Links for $normalized</title>
+</head>
+<body>
+<h1>Links for $normalized</h1>
+EOF
+  
+  jq -r --arg pkg "$package" '.[] | .assets[] | select(.name | startswith($pkg) and endswith(".whl")) | "<a href=\"\(.browser_download_url)\">\(.name)</a><br>"' "$RELEASES_FILE" >> "$OUTPUT_DIR/$normalized/index.html"
+  
+  cat >> "$OUTPUT_DIR/$normalized/index.html" << 'EOF'
+</body>
+</html>
+EOF
+done
+
+cat >> "$OUTPUT_DIR/index.html" << 'EOF'
+</body>
+</html>
+EOF
+
+for subdir in cpu cu118 cu119 cu120 cu121 cu122 cu123 cu124; do
+  mkdir -p "$OUTPUT_DIR/$subdir"
+  
+  cat > "$OUTPUT_DIR/$subdir/index.html" << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Simple Index</title>
+</head>
+<body>
+<h1>Simple Index</h1>
+EOF
+  
+  for package in $packages; do
+    normalized=$(normalize_name "$package")
+    echo "  <a href=\"$normalized/\">$normalized</a><br>" >> "$OUTPUT_DIR/$subdir/index.html"
+    
+    mkdir -p "$OUTPUT_DIR/$subdir/$normalized"
+    
+    cat > "$OUTPUT_DIR/$subdir/$normalized/index.html" << EOF
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Links for $normalized</title>
+</head>
+<body>
+<h1>Links for $normalized</h1>
+EOF
+    
+    if [ "$subdir" = "cpu" ]; then
+      pattern="cpu"
+    else
+      pattern="${subdir#cu}"
     fi
-    FOUND=$((FOUND+1))
-  done <<< "$ASSETS"
-done <<< "$RELEASE_TAGS"
-for PACKAGE_DIR in "$OUT_ROOT"/*/; do
-  PKG="$(basename "$PACKAGE_DIR")"
-  printf '%s\n' "<!doctype html><html><head><meta charset=\"utf-8\"><title>Index of $PKG</title></head><body><h1>Index of $PKG</h1><ul>" > "$PACKAGE_DIR/index.html"
-  shopt -s nullglob 2>/dev/null || true
-  for FILE in "$PACKAGE_DIR"*.whl; do
-    F="$(basename "$FILE")"
-    printf '%s\n' "  <li><a href=\"./$F\">$F</a></li>" >> "$PACKAGE_DIR/index.html"
+    
+    jq -r --arg pkg "$package" --arg pattern "$pattern" '.[] | .assets[] | select(.name | startswith($pkg) and endswith(".whl") and (if $pattern == "cpu" then contains("cpu") else contains($pattern) end)) | "<a href=\"\(.browser_download_url)\">\(.name)</a><br>"' "$RELEASES_FILE" >> "$OUTPUT_DIR/$subdir/$normalized/index.html"
+    
+    cat >> "$OUTPUT_DIR/$subdir/$normalized/index.html" << 'EOF'
+</body>
+</html>
+EOF
   done
-  printf '%s\n' "</ul></body></html>" >> "$PACKAGE_DIR/index.html"
+  
+  cat >> "$OUTPUT_DIR/$subdir/index.html" << 'EOF'
+</body>
+</html>
+EOF
 done
-PKG_LIST_HTML="$OUT_ROOT/index.html"
-printf '%s\n' "<!doctype html><html><head><meta charset=\"utf-8\"><title>Packages</title></head><body><h1>Packages</h1><ul>" > "$PKG_LIST_HTML"
-for DIR in "$OUT_ROOT"*/; do
-  P="$(basename "$DIR")"
-  printf '%s\n' "  <li><a href=\"./$P/\">$P</a></li>" >> "$PKG_LIST_HTML"
-done
-printf '%s\n' "</ul></body></html>" >> "$PKG_LIST_HTML"
-if [ "$FOUND" -eq 0 ]; then
-  exit 0
-fi
-exit 0
+
+echo "PEP 503 index generated successfully in $OUTPUT_DIR"
