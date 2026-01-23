@@ -407,4 +407,4 @@ jobs:
       url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
     steps:
       - name: Deploy
-        uses: actions/deploy-pages@v3
+        uses: actions/deploy-pages@v4
