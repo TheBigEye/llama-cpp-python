@@ -143,7 +143,6 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_REPAIR_WHEEL_COMMAND: ""
-          CMAKE_ARGS: "-DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DGGML_BLAS=OFF -DGGML_NATIVE=OFF"
         with:
           package-dir: .
           output-dir: wheelhouse
