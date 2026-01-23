@@ -1,3 +1,5 @@
+# Links for {package_name}
+
 name: Build and Publish Wheels
 
 on:
@@ -44,21 +46,32 @@ jobs:
       - name: Define Job Output
         id: set-matrix
         run: |
-          $matrix = @{
-              'os' = @('ubuntu-22.04')
-              'pyver' = @("3.9", "3.10", "3.11", "3.12")
-              'cuda' = @("12.1.1", "12.2.2", "12.3.2", "12.4.1")
-              'short' = @("cu121", "cu122", "cu123", "cu124")
-              'releasetag' = @("basic")
+          $pyvers = @("3.9", "3.10", "3.11", "3.12")
+          $cudavers = @("12.1.1", "12.2.2", "12.3.2", "12.4.1")
+          $shorts = @("cu121", "cu122", "cu123", "cu124")
+
+          $includes = @()
+
+          for ($i = 0; $i -lt $cudavers.Length; $i++) {
+            $cuda = $cudavers[$i]
+            $short = $shorts[$i]
+            foreach ($pyver in $pyvers) {
+              $includes += @{
+                pyver = $pyver
+                cuda = $cuda
+                short = $short
+                releasetag = "basic"
+              }
+            }
           }
 
-          $matrixOut = ConvertTo-Json $matrix -Compress
+          $matrixOut = @{ include = $includes } | ConvertTo-Json -Compress
           Write-Output "matrix=$matrixOut" >> $env:GITHUB_OUTPUT
 
   build_wheels_cuda:
     name: Build CUDA ${{ matrix.pyver }} ${{ matrix.short }}
     needs: [get_version, define_matrix_cuda]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-22.04
     strategy:
       matrix: ${{ fromJSON(needs.define_matrix_cuda.outputs.matrix) }}
     defaults:
@@ -115,6 +128,8 @@ jobs:
           name: wheel-cuda-${{ matrix.pyver }}-${{ matrix.short }}
           path: dist/*.whl
           retention-days: 7
+          if-no-files-found: warn
+          overwrite: true
 
   build_wheels_cpu:
     name: Build CPU ${{ matrix.os }}
@@ -162,6 +177,8 @@ jobs:
           name: wheel-cpu-${{ matrix.os }}
           path: dist/*.whl
           retention-days: 7
+          if-no-files-found: warn
+          overwrite: true
 
   collect_cpu:
     name: Collect and Release CPU Wheels
@@ -306,12 +323,11 @@ jobs:
                   '<!DOCTYPE html>',
                   '<html>',
                   '  <head>',
-                  '    <meta charset="utf-8">',
-                  '    <meta name="pypi:repository-version" content="1.0">',
-                  f'    <title>Links for {package_name}</title>',
+                  '    <title>Links for {package_name}</title>',
                   '  </head>',
                   '  <body>',
-                  f'    <h1>Links for {package_name} ({info["label"]})</h1>'
+                  '    <h1>Links for {package_name}</h1>',
+                  f'    <h2>{info["label"]}</h2>',
               ]
 
               for wheel in wheels:
@@ -330,41 +346,28 @@ jobs:
               '<!DOCTYPE html>',
               '<html>',
               '  <head>',
-              '    <meta charset="utf-8">',
               '    <title>llama-cpp-python - PyPI Index</title>',
-              '    <style>',
-              '      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }',
-              '      h1 { color: #2c3e50; }',
-              '      .config { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }',
-              '      .config h2 { margin-top: 0; color: #34495e; }',
-              '      code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }',
-              '      a { color: #3498db; text-decoration: none; }',
-              '      a:hover { text-decoration: underline; }',
-              '      small { color: #7f8c8d; }',
-              '    </style>',
               '  </head>',
               '  <body>',
               '    <h1>🦙 llama-cpp-python Wheels</h1>',
               '    <p>Pre-compiled wheels with CPU and CUDA support (hosted on GitHub Releases).</p>',
-              '    <p><small>Note: pip may warn about no hash verification – safe as downloads are direct from GitHub.</small></p>'
+              '    <p>Note: pip may warn about no hash verification – safe as downloads are direct from GitHub.</p>',
           ]
 
           for config, label in available_configs:
               index_url = f"https://{repo_owner}.github.io/{repo_name}/whl/{config}/"
               root_html.extend([
-                  '    <div class="config">',
-                  f'      <h2>{label}</h2>',
-                  f'      <p><strong>Install:</strong></p>',
-                  f'      <code>pip install llama-cpp-python --extra-index-url {index_url}</code>',
-                  f'      <p><strong>Force wheels only (recommended on Windows):</strong></p>',
-                  f'      <code>pip install llama-cpp-python --only-binary=:all: --extra-index-url {index_url}</code>',
-                  f'      <p><a href="whl/{config}/{package_name}/">View PEP 503 index →</a></p>',
-                  '    </div>'
+                  '    <h2>{label}</h2>',
+                  '    <p><strong>Install:</strong></p>',
+                  f'    <p><code>pip install llama-cpp-python --extra-index-url {index_url}</code></p>',
+                  '    <p><strong>Force wheels only (recommended on Windows):</strong></p>',
+                  f'    <p><code>pip install llama-cpp-python --only-binary=:all: --extra-index-url {index_url}</code></p>',
+                  f'    <p><a href="whl/{config}/{package_name}/">View PEP 503 index →</a></p>',
               ])
 
           root_html.extend([
-              '    <hr>',
-              '    <p><small>Generated by GitHub Actions • Wheels in Releases for history</small></p>',
+              '    <hr/>',
+              '    <p>Generated by GitHub Actions • Wheels in Releases for history</p>',
               '  </body>',
               '</html>'
           ])
@@ -384,14 +387,24 @@ jobs:
           
           See main page for installation commands.
           
-          **Repository**: [${{ github.repository }}](https://github.com/${{ github.repository }})
-          
-          **Upstream**: [abetlen/llama-cpp-python](https://github.com/abetlen/llama-cpp-python)
+          **Repository**: https://github.com/${{ github.repository }}
           EOF
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v6
         with:
           path: dist
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+  deploy_pages:
+    name: Deploy to GitHub Pages
+    needs: generate_pypi_index
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+    steps:
+      - name: Deploy
+        uses: actions/deploy-pages@v6
