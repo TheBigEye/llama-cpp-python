@@ -167,10 +167,12 @@ jobs:
     name: Collect and Release CPU Wheels
     needs: [get_version, build_wheels_cpu]
     runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}  # Necesario para gh CLI
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Necesario para git tag/push
+          fetch-depth: 0
 
       - name: Download Linux CPU wheels
         uses: actions/download-artifact@v6
@@ -185,9 +187,7 @@ jobs:
           path: dist
 
       - name: Delete existing release if exists
-        run: |
-          tag="v${{ needs.get_version.outputs.version }}"
-          gh release delete "$tag" --yes || true
+        run: gh release delete "v${{ needs.get_version.outputs.version }}" --yes || true
 
       - name: Force create tag and release
         run: |
@@ -197,9 +197,7 @@ jobs:
           gh release create "$tag" --title "CPU wheels v${{ needs.get_version.outputs.version }}" --notes "Automated build"
 
       - name: Upload wheels
-        run: |
-          tag="v${{ needs.get_version.outputs.version }}"
-          gh release upload "$tag" dist/*.whl --clobber
+        run: gh release upload "v${{ needs.get_version.outputs.version }}" dist/*.whl --clobber
 
   collect_cuda:
     name: Collect and Release CUDA ${{ matrix.short }}
@@ -208,22 +206,39 @@ jobs:
     strategy:
       matrix:
         short: [cu121, cu122, cu123, cu124]
+    env:
+      GH_TOKEN: ${{ github.token }}  # Necesario para gh CLI
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Download wheels for this CUDA version
-        run: |
-          mkdir -p dist
-          for py in 3.9 3.10 3.11 3.12; do
-            actions/download-artifact@v6 --name wheel-cuda-${py}-${{ matrix.short }} --path dist
-          done
+      - name: Download wheels py3.9
+        uses: actions/download-artifact@v6
+        with:
+          name: wheel-cuda-3.9-${{ matrix.short }}
+          path: dist
+
+      - name: Download wheels py3.10
+        uses: actions/download-artifact@v6
+        with:
+          name: wheel-cuda-3.10-${{ matrix.short }}
+          path: dist
+
+      - name: Download wheels py3.11
+        uses: actions/download-artifact@v6
+        with:
+          name: wheel-cuda-3.11-${{ matrix.short }}
+          path: dist
+
+      - name: Download wheels py3.12
+        uses: actions/download-artifact@v6
+        with:
+          name: wheel-cuda-3.12-${{ matrix.short }}
+          path: dist
 
       - name: Delete existing release if exists
-        run: |
-          tag="v${{ needs.get_version.outputs.version }}-${{ matrix.short }}"
-          gh release delete "$tag" --yes || true
+        run: gh release delete "v${{ needs.get_version.outputs.version }}-${{ matrix.short }}" --yes || true
 
       - name: Force create tag and release
         run: |
@@ -233,9 +248,7 @@ jobs:
           gh release create "$tag" --title "CUDA ${{ matrix.short }} wheels v${{ needs.get_version.outputs.version }}" --notes "Automated build"
 
       - name: Upload wheels
-        run: |
-          tag="v${{ needs.get_version.outputs.version }}-${{ matrix.short }}"
-          gh release upload "$tag" dist/*.whl --clobber
+        run: gh release upload "v${{ needs.get_version.outputs.version }}-${{ matrix.short }}" dist/*.whl --clobber
 
   generate_pypi_index:
     name: Generate PyPI Index
