@@ -1,5 +1,5 @@
 # Define the image argument and provide a default value
-ARG IMAGE=python:3-slim-bookworm
+ARG IMAGE=python:3.12-slim-bookworm
 
 # Use the image as specified
 FROM ${IMAGE}
@@ -7,33 +7,37 @@ FROM ${IMAGE}
 # Re-declare the ARG after FROM
 ARG IMAGE
 
-# Update and upgrade the existing packages 
+# Update and upgrade, install system deps for build
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     git \
-    python3 \
-    python3-pip \
+    build-essential \
+    cmake \
     ninja-build \
     libopenblas-dev \
-    build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
+# Create app dir
 RUN mkdir /app
 WORKDIR /app
+
+# Copy repo code
 COPY . /app
 
+# Upgrade pip and install Python deps (including server extras)
 RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install pytest scikit-build setuptools fastapi uvicorn sse-starlette pydantic-settings starlette-context
 
-RUN python3 -m pip install --upgrade pip pytest cmake scikit-build setuptools fastapi uvicorn sse-starlette pydantic-settings starlette-context
+# Install the local package with server extras and optimized CMake flags
+ENV CMAKE_ARGS="-DGGML_AVX=on -DGGML_AVX2=on -DGGML_FMA=on -DGGML_F16C=on"
+RUN pip install .[server] --verbose --no-cache-dir
 
-RUN pip install llama-cpp-python --verbose;
-
-# Set environment variable for the host
+# Set environment for server
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
-# Expose a port for the server
+# Expose port
 EXPOSE 8000
 
-# Run the server start script
+# Run the server script (asumiendo que existe run.sh)
 CMD ["/bin/sh", "/app/docker/simple/run.sh"]
