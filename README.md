@@ -16,7 +16,7 @@ Simple Python bindings for **@ggerganov's** [`llama.cpp`](https://github.com/gge
 
 > **Fork notice**
 >
-> This repository is a **fork** of the original [`abetlen/llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) project. The original repository has been largely inactive and unmaintained for some time, so this fork was created to follow a different path: **dedicated CPU and CUDA only support (no METAL)** for better stability and simplicity.
+> This repository is a **fork** of the original [`abetlen/llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) project. The original repository has been largely inactive and unmaintained for some time, so this fork was created to follow a different path: **dedicated CPU and CUDA only support (no METAL, no MacOS)** for better stability and simplicity.
 >
 > If you require METAL / ARM support, please refer to the original repository: [https://github.com/abetlen/llama-cpp-python](https://github.com/abetlen/llama-cpp-python) — this fork intentionally focuses on CPU and CUDA only usage.
 
@@ -45,7 +45,6 @@ Requirements:
   - C compiler
       - Linux: gcc or clang
       - Windows: Visual Studio or MinGW
-      - MacOS: Xcode
 
 To install the package, run:
 
