@@ -6,9 +6,6 @@ RUN apt-get update && apt-get upgrade -y && \
         build-essential \
         cmake \
         ninja-build \
-        clang \
-        libclang-dev \
-        libomp-dev \
         libopenblas-dev \
         g++ \
         && apt-get clean && \
@@ -22,7 +19,7 @@ RUN pip install --upgrade pip
 RUN pip install pytest scikit-build setuptools fastapi uvicorn sse-starlette pydantic-settings starlette-context
 
 ENV CMAKE_GENERATOR="Ninja"
-ENV CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_NO_ACCELERATE=ON"
+ENV CMAKE_ARGS="-DGGML_AVX=on -DGGML_AVX2=on -DGGML_FMA=on -DGGML_F16C=on -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS"
 
 RUN pip install .[server] --verbose --no-cache-dir
 
