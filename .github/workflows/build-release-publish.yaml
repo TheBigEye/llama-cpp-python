@@ -51,11 +51,17 @@ jobs:
           $shorts = @("cu121", "cu122", "cu123", "cu124")
 
           $includes = @()
+
           for ($i = 0; $i -lt $cudavers.Length; $i++) {
             $cuda = $cudavers[$i]
             $short = $shorts[$i]
             foreach ($pyver in $pyvers) {
-              $includes += @{ pyver = $pyver; cuda = $cuda; short = $short; releasetag = "basic" }
+              $includes += @{
+                pyver = $pyver
+                cuda = $cuda
+                short = $short
+                releasetag = "basic"
+              }
             }
           }
 
@@ -74,14 +80,17 @@ jobs:
     env:
       CUDAVER: ${{ matrix.cuda }}
       AVXVER: ${{ matrix.releasetag }}
+
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: "recursive"
+
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.pyver }}
           cache: 'pip'
+
       - name: Setup Mamba
         uses: conda-incubator/setup-miniconda@v3.1.0
         with:
@@ -90,6 +99,7 @@ jobs:
           miniforge-version: latest
           add-pip-as-python-dependency: true
           auto-activate-base: false
+
       - name: Install Dependencies
         env:
           MAMBA_DOWNLOAD_FAILFAST: "0"
@@ -97,18 +107,22 @@ jobs:
         run: |
           mamba install -y 'cuda' -c nvidia/label/cuda-$env:CUDAVER
           python -m pip install build wheel
+
       - name: Build Wheel
         run: |
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
           $env:CUDA_PATH = $env:CONDA_PREFIX
           $env:CUDA_HOME = $env:CONDA_PREFIX
           $env:CUDA_TOOLKIT_ROOT_DIR = $env:CONDA_PREFIX
-          if ($IsLinux) { $env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH }
+          if ($IsLinux) {
+            $env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH
+          }
           $env:VERBOSE = '1'
           $env:CMAKE_ARGS = '-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all'
           $env:CMAKE_ARGS = "-DGGML_CUDA_FORCE_MMQ=ON $env:CMAKE_ARGS"
           $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off'
           python -m build --wheel
+
       - uses: actions/upload-artifact@v6
         with:
           name: wheel-cuda-${{ matrix.pyver }}-${{ matrix.short }}
@@ -127,9 +141,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: "recursive"
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
+
       - name: Install dependencies (Linux)
         if: runner.os != 'Windows'
         run: |
@@ -137,15 +153,17 @@ jobs:
           python -m pip install uv
           RUST_LOG=trace python -m uv pip install -e .[all] --verbose
         shell: bash
+
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         env:
-          RUST_LOG: trace
+          RUST_LOG: trace        
         run: |
           python -m pip install --upgrade pip
           python -m pip install uv
           python -m uv pip install -e .[all] --verbose
         shell: cmd
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         env:
@@ -153,6 +171,7 @@ jobs:
         with:
           package-dir: .
           output-dir: dist
+
       - uses: actions/upload-artifact@v6
         with:
           name: wheel-cpu-${{ matrix.os }}
@@ -166,29 +185,34 @@ jobs:
     needs: [get_version, build_wheels_cpu]
     runs-on: ubuntu-22.04
     env:
-      GH_TOKEN: ${{ github.token }} # Necesario para gh CLI
+      GH_TOKEN: ${{ github.token }}  # Necesario para gh CLI
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: Download Linux CPU wheels
         uses: actions/download-artifact@v6
         with:
           name: wheel-cpu-ubuntu-22.04
           path: dist
+
       - name: Download Windows CPU wheels
         uses: actions/download-artifact@v6
         with:
           name: wheel-cpu-windows-2022
           path: dist
+
       - name: Delete existing release if exists
         run: gh release delete "v${{ needs.get_version.outputs.version }}" --yes || true
+
       - name: Force create tag and release
         run: |
           tag="v${{ needs.get_version.outputs.version }}"
           git tag -f "$tag"
           git push -f origin "$tag"
           gh release create "$tag" --title "CPU wheels v${{ needs.get_version.outputs.version }}" --notes "Automated build"
+
       - name: Upload wheels
         run: gh release upload "v${{ needs.get_version.outputs.version }}" dist/*.whl --clobber
 
@@ -200,39 +224,46 @@ jobs:
       matrix:
         short: [cu121, cu122, cu123, cu124]
     env:
-      GH_TOKEN: ${{ github.token }} # Necesario para gh CLI
+      GH_TOKEN: ${{ github.token }}  # Necesario para gh CLI
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: Download wheels py3.9
         uses: actions/download-artifact@v6
         with:
           name: wheel-cuda-3.9-${{ matrix.short }}
           path: dist
+
       - name: Download wheels py3.10
         uses: actions/download-artifact@v6
         with:
           name: wheel-cuda-3.10-${{ matrix.short }}
           path: dist
+
       - name: Download wheels py3.11
         uses: actions/download-artifact@v6
         with:
           name: wheel-cuda-3.11-${{ matrix.short }}
           path: dist
+
       - name: Download wheels py3.12
         uses: actions/download-artifact@v6
         with:
           name: wheel-cuda-3.12-${{ matrix.short }}
           path: dist
+
       - name: Delete existing release if exists
         run: gh release delete "v${{ needs.get_version.outputs.version }}-${{ matrix.short }}" --yes || true
+
       - name: Force create tag and release
         run: |
           tag="v${{ needs.get_version.outputs.version }}-${{ matrix.short }}"
           git tag -f "$tag"
           git push -f origin "$tag"
           gh release create "$tag" --title "CUDA ${{ matrix.short }} wheels v${{ needs.get_version.outputs.version }}" --notes "Automated build"
+
       - name: Upload wheels
         run: gh release upload "v${{ needs.get_version.outputs.version }}-${{ matrix.short }}" dist/*.whl --clobber
 
@@ -240,143 +271,139 @@ jobs:
     name: Generate PyPI Index
     needs: [get_version, collect_cpu, collect_cuda]
     runs-on: ubuntu-22.04
-    env:
-      # Ensure the GitHub token is available for API fallbacks and for 'gh' auth
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VERSION: ${{ needs.get_version.outputs.version }}
-      REPO: ${{ github.repository }}
-      REPO_OWNER: ${{ github.repository_owner }}
-      REPO_NAME: ${{ github.event.repository.name }}
     steps:
-      - name: Debug - show git tags (for troubleshooting)
-        run: |
-          echo "== git tags from remote =="
-          git ls-remote --tags origin || true
-
-      - name: Authenticate gh CLI (for consistent API access)
-        run: |
-          echo "$GH_TOKEN" | gh auth login --with-token
-
       - name: Create base directory
         run: mkdir -p dist/whl/{cpu,cu121,cu122,cu123,cu124}
 
       - name: Generate PEP 503 indices
+        env:
+          VERSION: ${{ needs.get_version.outputs.version }}
+          REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           python << 'PYEOF'
-          import os, subprocess, json, sys
+          import os
+          import subprocess
+          import json
 
           repo = os.environ['REPO']
           version = os.environ['VERSION']
           repo_owner = os.environ['REPO_OWNER']
           repo_name = os.environ['REPO_NAME']
-          configs = {
-            'cpu': {'tag': f'v{version}', 'label': 'CPU'},
-            'cu121': {'tag': f'v{version}-cu121', 'label': 'CUDA 12.1'},
-            'cu122': {'tag': f'v{version}-cu122', 'label': 'CUDA 12.2'},
-            'cu123': {'tag': f'v{version}-cu123', 'label': 'CUDA 12.3'},
-            'cu124': {'tag': f'v{version}-cu124', 'label': 'CUDA 12.4'},
-          }
 
           package_name = "llama-cpp-python"
+
+          configs = {
+              'cpu': {'tag': f'v{version}', 'label': 'CPU'},
+              'cu121': {'tag': f'v{version}-cu121', 'label': 'CUDA 12.1'},
+              'cu122': {'tag': f'v{version}-cu122', 'label': 'CUDA 12.2'},
+              'cu123': {'tag': f'v{version}-cu123', 'label': 'CUDA 12.3'},
+              'cu124': {'tag': f'v{version}-cu124', 'label': 'CUDA 12.4'},
+          }
+
           available_configs = []
 
-          def get_release_assets_with_gh(tag):
-            try:
-              out = subprocess.check_output(['gh', 'release', 'view', tag, '--repo', repo, '--json', 'assets'], stderr=subprocess.STDOUT)
-              data = json.loads(out)
-              return [a['name'] for a in data.get('assets', []) if a['name'].endswith('.whl')]
-            except Exception as e:
-              print('gh CLI failed:', e)
-              return None
-
-          def get_release_assets_with_api(tag):
-            token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN')
-            api_url = f'https://api.github.com/repos/{repo}/releases/tags/{tag}'
-            headers = ['-H', f'Accept: application/vnd.github+json']
-            if token:
-              headers += ['-H', f'Authorization: token {token}']
-            try:
-              out = subprocess.check_output(['curl', '-s'] + headers + [api_url])
-              data = json.loads(out)
-              return [a['name'] for a in data.get('assets', []) if a['name'].endswith('.whl')]
-            except Exception as e:
-              print('GitHub API fallback failed:', e)
-              return []
-
           for config, info in configs.items():
-            tag = info['tag']
-            print(f'Checking release: {tag} for {info["label"]}')
-            wheels = get_release_assets_with_gh(tag)
-            if wheels is None:
-              wheels = get_release_assets_with_api(tag)
+              tag = info['tag']
+              try:
+                  output = subprocess.check_output(['gh', 'release', 'view', tag, '--json', 'assets'])
+                  data = json.loads(output)
+                  wheels = sorted([a['name'] for a in data['assets'] if a['name'].endswith('.whl')])
+              except Exception as e:
+                  print(f"✗ No release/wheels for {info['label']}: {e}")
+                  wheels = []
 
-            wheels = sorted(wheels)
-            if not wheels:
-              print(f"✗ No release/wheels for {info['label']}")
-              continue
+              if not wheels:
+                  continue
 
-            package_dir = f'dist/whl/{config}/{package_name}'
-            os.makedirs(package_dir, exist_ok=True)
-            html = [
-              '<!DOCTYPE html>',
-              '<html>',
-              ' <head>',
-              f' <title>Links for {package_name}</title>',
-              ' </head>',
-              ' <body>',
-              f' <h1>Links for {package_name}</h1>',
-              f' <h2>{info["label"]}</h2>',
-            ]
+              # Create config-level simple index (like abetlen's /whl/cpu/)
+              config_dir = f'dist/whl/{config}'
+              os.makedirs(config_dir, exist_ok=True)
+              config_index_path = f'{config_dir}/index.html'
+              config_html = [
+                  '<!DOCTYPE html>',
+                  '<html>',
+                  '  <head><title>simple index</title></head>',
+                  '  <body>',
+                  f'    <a href="{package_name}/">{package_name}</a><br/>',
+                  '  </body>',
+                  '</html>'
+              ]
+              with open(config_index_path, 'w', encoding='utf-8') as f:
+                  f.write('\n'.join(config_html))
 
-            for wheel in wheels:
-              url = f"https://github.com/{repo}/releases/download/{tag}/{wheel}"
-              html.append(f' <a href="{url}">{wheel}</a><br/>')
+              # Create package-level index with wheel list
+              package_dir = f'{config_dir}/{package_name}'
+              os.makedirs(package_dir, exist_ok=True)
+              project_html = [
+                  '<!DOCTYPE html>',
+                  '<html>',
+                  '  <head>',
+                  f'    <title>Links for {package_name}</title>',
+                  '  </head>',
+                  '  <body>',
+                  f'    <h1>Links for {package_name}</h1>',
+              ]
 
-            html.extend([' </body>', '</html>'])
+              for wheel in wheels:
+                  url = f"https://github.com/{repo}/releases/download/{tag}/{wheel}"
+                  project_html.append(f'    <a href="{url}#sha256=...">{wheel}</a><br/>')  # pip ignora hash, pero es estándar PEP 503
 
-            with open(f'{package_dir}/index.html', 'w', encoding='utf-8') as f:
-              f.write('\n'.join(html))
-            print(f"✓ Generated PEP 503 index for {info['label']}")
-            available_configs.append((config, info['label']))
+              project_html.extend(['  </body>', '</html>'])
+
+              with open(f'{package_dir}/index.html', 'w', encoding='utf-8') as f:
+                  f.write('\n'.join(project_html))
+
+              print(f"✓ Generated PEP 503 index for {info['label']}")
+              available_configs.append((config, info['label']))
 
           root_html = [
-            '<!DOCTYPE html>',
-            '<html>',
-            ' <head>',
-            ' <title>llama-cpp-python - PyPI Index</title>',
-            ' </head>',
-            ' <body>',
-            ' <h1> llama-cpp-python Wheels</h1>',
-            ' <p>Pre-compiled wheels with CPU and CUDA support (hosted on GitHub Releases).</p>',
-            ' <p>Note: pip may warn about no hash verification – safe as downloads are direct from GitHub.</p>',
+              '<!DOCTYPE html>',
+              '<html>',
+              '  <head>',
+              '    <title>llama-cpp-python - PyPI Index</title>',
+              '  </head>',
+              '  <body>',
+              '    <h1>🦙 llama-cpp-python Wheels</h1>',
+              '    <p>Pre-compiled wheels with CPU and CUDA support (hosted on GitHub Releases).</p>',
+              '    <p>Note: pip may warn about no hash verification – safe as downloads are direct from GitHub.</p>',
           ]
 
           for config, label in available_configs:
-            index_url = f"https://{repo_owner}.github.io/{repo_name}/whl/{config}/"
-            root_html.extend([
-              f' <h2>{label}</h2>',
-              ' <p><strong>Install:</strong></p>',
-              f' <p><code>pip install llama-cpp-python --extra-index-url {index_url}</code></p>',
-              ' <p><strong>Force wheels only (recommended on Windows):</strong></p>',
-              f' <p><code>pip install llama-cpp-python --only-binary=:all: --extra-index-url {index_url}</code></p>',
-              f' <p><a href="whl/{config}/{package_name}/">View PEP 503 index →</a></p>',
-            ])
+              index_url = f"https://{repo_owner}.github.io/{repo_name}/whl/{config}/"
+              root_html.extend([
+                  f'    <h2>{label}</h2>',
+                  '    <p><strong>Install:</strong></p>',
+                  f'    <p><code>pip install llama-cpp-python --extra-index-url {index_url}</code></p>',
+                  '    <p><strong>Force wheels only (recommended on Windows):</strong></p>',
+                  f'    <p><code>pip install llama-cpp-python --only-binary=:all: --extra-index-url {index_url}</code></p>',
+                  f'    <p><a href="whl/{config}/{package_name}/">View full wheel list (PEP 503) →</a></p>',
+                  f'    <p><a href="whl/{config}/">View simple directory index →</a></p>',
+              ])
 
-          root_html.extend([' <hr/>', ' <p>Generated by GitHub Actions • Wheels in Releases for history</p>', ' </body>', '</html>'])
+          root_html.extend([
+              '    <hr/>',
+              '    <p>Generated by GitHub Actions • Wheels in Releases for history</p>',
+              '  </body>',
+              '</html>'
+          ])
+
           with open('dist/index.html', 'w', encoding='utf-8') as f:
-            f.write('\n'.join(root_html))
-          print('✓ Generated root index')
+              f.write('\n'.join(root_html))
+
+          print("✓ Generated root index")
           PYEOF
 
       - name: Create README
         run: |
           cat > dist/README.md << 'EOF'
-          # llama-cpp-python Wheels
-
+          # 🦙 llama-cpp-python Wheels
+          
           Pre-compiled wheels with CPU and CUDA support.
-
+          
           See main page for installation commands.
+          
           **Repository**: https://github.com/${{ github.repository }}
           EOF
 
