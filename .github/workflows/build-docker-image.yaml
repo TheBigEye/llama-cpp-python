@@ -10,18 +10,18 @@ on:
 
 
 jobs:
-	# Build and push Docker image
+  # Build and push Docker image
   docker:
     runs-on: ubuntu-22.04
 
     steps:
-			# Checkout repository
+      # Checkout repository
       - name: Checkout
         uses: actions/checkout@v6
         with:
           submodules: recursive
 
-			# Set up QEMU and Docker Buildx
+      # Set up QEMU and Docker Buildx
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -50,7 +50,7 @@ jobs:
           context: .
           file: docker/simple/Dockerfile
 
-					# Currently only building for linux/amd64, due to ARM issues with some dependencies
+          # Currently only building for linux/amd64, due to ARM issues with some dependencies
           platforms: linux/amd64
 
           push: true

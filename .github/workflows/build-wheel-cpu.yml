@@ -14,16 +14,16 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-          
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          
+
       - name: Install cibuildwheel
         run: |
           python -m pip install -U pip
           python -m pip install -U cibuildwheel wheel
-          
+
       - name: Build wheel (CPU only, skip repair)
         env:
           CIBW_BUILD: "cp310-manylinux_x86_64"
@@ -35,7 +35,7 @@ jobs:
             CMAKE_ARGS="-DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DGGML_BLAS=OFF -DGGML_NATIVE=OFF"
         run: |
           python -m cibuildwheel --output-dir wheelhouse_temp
-          
+
       - name: Rename wheel to manylinux
         run: |
           mkdir -p wheelhouse
@@ -47,7 +47,7 @@ jobs:
           done
           cd ..
           ls -lh wheelhouse/
-          
+
       - uses: actions/upload-artifact@v6
         with:
           name: wheelhouse-linux
@@ -61,16 +61,16 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-          
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          
+
       - name: Install cibuildwheel
         run: |
           python -m pip install -U pip
           python -m pip install -U cibuildwheel wheel
-          
+
       - name: Build wheel (CPU only)
         env:
           CIBW_BUILD: "cp310-win_amd64"
@@ -79,11 +79,11 @@ jobs:
             CMAKE_ARGS="-DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DGGML_BLAS=OFF -DGGML_NATIVE=OFF"
         run: |
           python -m cibuildwheel --output-dir wheelhouse
-          
+
       - name: List wheels
         run: |
           Get-ChildItem -Path wheelhouse -Recurse
-          
+
       - uses: actions/upload-artifact@v6
         with:
           name: wheelhouse-windows
@@ -100,10 +100,10 @@ jobs:
         with:
           path: wheelhouse
           merge-multiple: true
-          
+
       - name: List all wheels
         run: ls -lh wheelhouse/
-        
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
