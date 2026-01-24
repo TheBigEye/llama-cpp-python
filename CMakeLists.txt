@@ -194,3 +194,4 @@ if (LLAMA_BUILD)
         # target_include_directories(llama-minicpmv-cli PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/llama.cpp/include)
     endif()
 endif()
+
