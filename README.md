@@ -1,12 +1,13 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TheBigEye/llama-cpp-python/main/docs/icon.svg" style="height: 16rem; width: 16rem">
+  <img src="https://raw.githubusercontent.com/TheBigEye/guanaco-py/main/docs/icon.svg" style="height: 16rem; width: 16rem">
 </p>
 
 #  Python Bindings for [`llama.cpp`](https://github.com/ggerganov/llama.cpp)
 
-[![Documentation Status](https://readthedocs.org/projects/llama-cpp-python/badge/?version=latest)](https://llama-cpp-python.readthedocs.io/en/latest/?badge=latest)
-[![Tests](https://github.com/TheBigEye/llama-cpp-python/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/TheBigEye/llama-cpp-python/actions/workflows/test.yaml)
-[![Github All Releases](https://img.shields.io/github/downloads/TheBigEye/llama-cpp-python/total.svg?label=Github%20Downloads)]()
+[![Forked from abetlen/llama-cpp-python](https://img.shields.io/badge/forked%20from-abetlen/llama--cpp--python-blue)](https://github.com/abetlen/llama-cpp-python)
+[![Tests](https://github.com/TheBigEye/guanaco-py/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/TheBigEye/guanaco-py/actions/workflows/test.yaml)
+[![Github All Releases](https://img.shields.io/github/downloads/TheBigEye/guanaco-py/total.svg?label=Github%20Downloads)]()
+
 <!--- [![PyPI](https://img.shields.io/pypi/v/llama-cpp-python)](https://pypi.org/project/llama-cpp-python/) --->
 <!--- [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/llama-cpp-python)](https://pypi.org/project/llama-cpp-python/) --->
 <!--- [![PyPI - License](https://img.shields.io/pypi/l/llama-cpp-python)](https://pypi.org/project/llama-cpp-python/) --->
