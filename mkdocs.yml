@@ -1,5 +1,5 @@
-site_name: llama-cpp-python
-repo_url: https://github.com/TheBigEye/llama-cpp-python
+site_name: guanaco-py
+repo_url: https://github.com/TheBigEye/guanaco-py
 
 theme:
   name: material
@@ -46,8 +46,6 @@ watch:
 
 nav:
   - "Getting Started": "index.md"
-  - "Installation Guides":
-    - "macOS (Metal)": "install/macos.md"
   - "API Reference": "api-reference.md"
   - "OpenAI Compatible Web Server": "server.md"
   - "Changelog": "changelog.md"
@@ -64,8 +62,8 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.magiclink:
       repo_url_shorthand: true
-      user: abetlen
-      repo: llama-cpp-python
+      user: TheBigEye
+      repo: guanaco-py
   - pymdownx.snippets
   - pymdownx.superfences
   - pymdownx.tabbed:
