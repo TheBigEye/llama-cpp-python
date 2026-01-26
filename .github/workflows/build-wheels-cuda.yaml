@@ -22,7 +22,7 @@ jobs:
           $matrix = @{
               'os' = @('ubuntu-22.04') #, 'windows-2022')
               'pyver' = @("3.9", "3.10", "3.11", "3.12")
-              'cuda' = @("12.1.1", "12.2.2", "12.3.2", "12.4.1") #, "12.5.1", "12.6.1")
+              'cuda' = @("12.1.1", "12.2.2", "12.3.2") # "12.4.1", "12.5.1", "12.6.1")
               'releasetag' = @("basic")
           }
 
@@ -98,8 +98,9 @@ jobs:
           MAMBA_DOWNLOAD_FAILFAST: "0"
           MAMBA_NO_LOW_SPEED_LIMIT: "1"
         run: |
-          mamba install -y cuda-toolkit=$$   {{ matrix.cuda }} cuda-nvcc cuda-cudart-dev -c nvidia/label/cuda-   $${{ matrix.cuda }} -c nvidia -c conda-forge
-          python -m pip install build wheel requests
+          $cudaVersion = $env:CUDAVER
+          mamba install -y 'cuda' -c nvidia/label/cuda-$cudaVersion
+          python -m pip install build wheel
           
       - name: Build Wheel
         run: |
