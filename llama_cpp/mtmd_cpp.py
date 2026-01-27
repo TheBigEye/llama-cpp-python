@@ -5,6 +5,7 @@ from ctypes import (
     c_bool,
     c_char_p,
     c_int,
+    c_int32,
     c_uint8,
     c_uint32,
     c_float,
@@ -225,6 +226,111 @@ def mtmd_input_chunk_get_tokens_text(
     chunk: mtmd_input_chunk_p, n_tokens_output: "_Pointer[c_size_t]", /
 ) -> Optional["_Pointer[llama_cpp.llama_token]"]:
     ...
+
+
+# MTMD_API const mtmd_image_tokens *  mtmd_input_chunk_get_tokens_image(const mtmd_input_chunk * chunk);
+@ctypes_function(
+    "mtmd_input_chunk_get_tokens_image",
+    [mtmd_input_chunk_p_ctypes],
+    mtmd_image_tokens_p_ctypes,
+)
+def mtmd_input_chunk_get_tokens_image(chunk: mtmd_input_chunk_p) -> mtmd_image_tokens_p:
+    ...
+
+# MTMD_API size_t                     mtmd_input_chunk_get_n_tokens    (const mtmd_input_chunk * chunk);
+@ctypes_function(
+    "mtmd_input_chunk_get_n_tokens",
+    [mtmd_input_chunk_p_ctypes],
+    c_size_t,
+)
+def mtmd_input_chunk_get_n_tokens(chunk: mtmd_input_chunk_p) -> c_size_t:
+    ...
+
+# // returns nullptr for ID on text chunk
+# MTMD_API const char *               mtmd_input_chunk_get_id          (const mtmd_input_chunk * chunk);
+@ctypes_function(
+    "mtmd_input_chunk_get_id",
+    [mtmd_input_chunk_p_ctypes],
+    c_char_p,
+)
+def mtmd_input_chunk_get_id(chunk: mtmd_input_chunk_p) -> c_char_p:
+    """
+    returns nullptr for ID on text chunk
+    """
+    ...
+
+
+# // number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
+# MTMD_API llama_pos                  mtmd_input_chunk_get_n_pos       (const mtmd_input_chunk * chunk);
+@ctypes_function("mtmd_input_chunk_get_n_pos", [mtmd_input_chunk_p_ctypes], c_int32)
+def mtmd_input_chunk_get_n_pos(chunk: mtmd_input_chunk_p) -> c_int32:
+    """
+    number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
+    """
+
+
+# // in case you want to use custom logic to handle the chunk (i.e. KV cache management)
+# // you can move the chunk ownership to your own code by copying it
+# // remember to free the chunk when you are done with it
+# MTMD_API mtmd_input_chunk * mtmd_input_chunk_copy(const mtmd_input_chunk * chunk);
+@ctypes_function("mtmd_input_chunk_copy", [mtmd_input_chunk_p_ctypes], mtmd_input_chunk_p_ctypes)
+def mtmd_input_chunk_copy(chunk: mtmd_input_chunk_p) -> mtmd_input_chunk_p:
+    """
+    in case you want to use custom logic to handle the chunk (i.e. KV cache management)
+    you can move the chunk ownership to your own code by copying it
+    remember to free the chunk when you are done with it
+    """
+    ...
+
+# MTMD_API void               mtmd_input_chunk_free(mtmd_input_chunk * chunk);
+@ctypes_function("mtmd_input_chunk_free", [mtmd_input_chunk_p_ctypes], None)
+def mtmd_input_chunk_free(chunk: mtmd_input_chunk_p):
+    """
+    remember to free the chunk when you are done with it
+    """
+    ...
+
+
+# // mtmd_image_tokens
+# //
+# // the instance will be constructed via mtmd_tokenize()
+# // it will be freed along with mtmd_input_chunk
+# MTMD_API size_t       mtmd_image_tokens_get_n_tokens(const mtmd_image_tokens * image_tokens); // TODO: deprecate
+@ctypes_function(
+    "mtmd_image_tokens_get_n_tokens", [mtmd_image_tokens_p_ctypes], c_size_t)
+def mtmd_image_tokens_get_n_tokens(image_tokens: mtmd_image_tokens_p) -> c_size_t:
+    ...
+
+# MTMD_API size_t       mtmd_image_tokens_get_nx      (const mtmd_image_tokens * image_tokens);
+@ctypes_function(
+    "mtmd_image_tokens_get_nx", [mtmd_image_tokens_p_ctypes], c_size_t)
+def mtmd_image_tokens_get_nx(image_tokens: mtmd_image_tokens_p) -> c_size_t:
+    ...
+
+# MTMD_API size_t       mtmd_image_tokens_get_ny      (const mtmd_image_tokens * image_tokens);
+@ctypes_function(
+    "mtmd_image_tokens_get_ny", [mtmd_image_tokens_p_ctypes], c_size_t)
+def mtmd_image_tokens_get_ny(image_tokens: mtmd_image_tokens_p) -> c_size_t:
+    ...
+
+# MTMD_API const char * mtmd_image_tokens_get_id      (const mtmd_image_tokens * image_tokens); // TODO: deprecate
+@ctypes_function(
+    "mtmd_image_tokens_get_id", [mtmd_image_tokens_p_ctypes], c_char_p)
+def mtmd_image_tokens_get_id(image_tokens: mtmd_image_tokens_p) -> c_char_p:
+    ...
+
+
+# // number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
+# MTMD_API llama_pos    mtmd_image_tokens_get_n_pos   (const mtmd_image_tokens * image_tokens); // TODO: deprecate
+@ctypes_function(
+    "mtmd_image_tokens_get_n_pos",
+    [mtmd_image_tokens_p_ctypes],
+    c_int32,
+)
+def mtmd_image_tokens_get_n_pos(image_tokens: mtmd_image_tokens_p) -> c_int32:
+    """number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)"""
+    ...
+
 
 ################################################
 # mtmd-helper.h functions
