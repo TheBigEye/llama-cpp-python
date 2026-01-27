@@ -54,7 +54,7 @@ jobs:
         # Only run this step if the cache was not found
         if: steps.model-cache.outputs.cache-hit != 'true'
         run: |
-          pip install huggingface-hub
+          pip install huggingface-hub[cli]
           huggingface-cli download ${{ env.REPO_ID }} ${{ env.MODEL_FILE }}
         shell: bash
 
