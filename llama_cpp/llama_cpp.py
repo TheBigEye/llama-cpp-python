@@ -1830,6 +1830,95 @@ def llama_adapter_lora_init(
 ) -> Optional[llama_adapter_lora_p]: ...
 
 
+# // Functions to access the adapter's GGUF metadata scalar values
+# // - The functions return the length of the string on success, or -1 on failure
+# // - The output string is always null-terminated and cleared on failure
+# // - When retrieving a string, an extra byte must be allocated to account for the null terminator
+# // - GGUF array values are not supported by these functions
+
+# // Get metadata value as a string by key name
+# LLAMA_API int32_t llama_adapter_meta_val_str(const struct llama_adapter_lora * adapter, const char * key, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_val_str",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_val_str(
+    adapter: llama_adapter_lora_p,
+    key: ctypes.c_char_p,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata value as a string by key name"""
+    ...
+
+
+# // Get the number of metadata key/value pairs
+# LLAMA_API int32_t llama_adapter_meta_count(const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_meta_count",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_count(adapter: llama_adapter_lora_p) -> int:
+    """Get the number of metadata key/value pairs"""
+    ...
+
+
+# // Get metadata key name by index
+# LLAMA_API int32_t llama_adapter_meta_key_by_index(const struct llama_adapter_lora * adapter, int32_t i, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_key_by_index",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_int32,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_key_by_index(
+    adapter: llama_adapter_lora_p,
+    i: ctypes.c_int32,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata key name by index"""
+    ...
+
+
+# // Get metadata value as a string by index
+# LLAMA_API int32_t llama_adapter_meta_val_str_by_index(const struct llama_adapter_lora * adapter, int32_t i, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_val_str_by_index",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_int32,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_val_str_by_index(
+    adapter: llama_adapter_lora_p,
+    i: ctypes.c_int32,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata value as a string by index"""
+    ...
+
+
+
+
 # // Manually free a LoRA adapter
 # // Note: loaded adapters will be free when the associated model is deleted
 # LLAMA_API void llama_adapter_lora_free(struct llama_adapter_lora * adapter);
