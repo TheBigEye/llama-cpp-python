@@ -222,15 +222,13 @@ jobs:
           name: wheel-cpu-windows-2022
           path: dist
 
-      - name: Delete existing release if exists
-        run: gh release delete "v${{ needs.get_version.outputs.version }}" --yes || true
+      - name: Delete existing release
+        run: gh release delete "v${{ needs.get_version.outputs.version }}" --cleanup-tag --yes || true
 
-      - name: Force create tag and release
+      - name: Create tag and release
         run: |
           tag="v${{ needs.get_version.outputs.version }}"
-          git tag -f "$tag"
-          git push -f origin "$tag"
-          gh release create "$tag" --title "v${{ needs.get_version.outputs.version }}" --notes "Automated build"
+          gh release create "$tag" --title "v${{ needs.get_version.outputs.version }}" --generate-notes
 
       - name: Upload wheels
         run: gh release upload "v${{ needs.get_version.outputs.version }}" dist/*.whl --clobber
