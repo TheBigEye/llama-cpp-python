@@ -30,12 +30,12 @@ jobs:
         pyver: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     name: Linux CUDA ${{ matrix.cuda_config.ver }} Py ${{ matrix.pyver }}
     steps:
-      - name: Install system deps (including real cmake) and deadsnakes PPA
+      - name: Install system deps (including cmake) and deadsnakes PPA
         run: |
           apt update && apt install -y software-properties-common git curl build-essential cmake libssl-dev
           add-apt-repository ppa:deadsnakes/ppa -y
           apt update
-          apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev python${{ matrix.pyver }}-distutils python${{ matrix.pyver }}-venv
+          apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev
 
       - name: Set Python symlink and install pip + uv
         run: |
