@@ -12,77 +12,87 @@ jobs:
   build-cuda:
     name: Build CUDA ${{ matrix.pyver }} ${{ matrix.cuda_short }}
     runs-on: ubuntu-latest
-    container: ${{ matrix.container_image }}
     strategy:
       fail-fast: false
       matrix:
         pyver: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         include:
-          - cuda_full: "12.1.1"
+          - cuda_pkg: "12-1"
             cuda_short: cu121
-            container_image: nvidia/cuda:12.1.1-devel-ubuntu22.04
-          - cuda_full: "12.2.2"
+            cuda_ver: "12.1"
+          - cuda_pkg: "12-2"
             cuda_short: cu122
-            container_image: nvidia/cuda:12.2.2-devel-ubuntu22.04
-          - cuda_full: "12.3.2"
+            cuda_ver: "12.2"
+          - cuda_pkg: "12-3"
             cuda_short: cu123
-            container_image: nvidia/cuda:12.3.2-devel-ubuntu22.04
-          - cuda_full: "12.4.1"
+            cuda_ver: "12.3"
+          - cuda_pkg: "12-4"
             cuda_short: cu124
-            container_image: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
-          - cuda_full: "12.6.3"
+            cuda_ver: "12.4"
+          - cuda_pkg: "12-6"
             cuda_short: cu126
-            container_image: nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+            cuda_ver: "12.6"
 
     env:
-      CUDAVER: ${{ matrix.cuda_full }}
-      CUDASHORT: ${{ matrix.cuda_short }}
+      CUDA_PKG: ${{ matrix.cuda_pkg }}
+      CUDA_SHORT: ${{ matrix.cuda_short }}
+      CUDA_VER: ${{ matrix.cuda_ver }}
 
     steps:
       - name: Install system dependencies
         run: |
-          apt-get update
-          apt-get install -y build-essential cmake git curl libssl-dev libjpeg-dev
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git curl libssl-dev libopenblas-dev
+
+      - name: Install CUDA Toolkit ${{ matrix.cuda_pkg }}
+        run: |
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update
+          sudo apt-get install -y cuda-toolkit-${CUDA_PKG}
+          echo "CUDA_HOME=/usr/local/cuda-${CUDA_VER}" >> $GITHUB_ENV
+          echo "/usr/local/cuda-${CUDA_VER}/bin" >> $GITHUB_PATH
+          echo "/usr/local/cuda-${CUDA_VER}/lib64" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VER}/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install uv and set Python version
-        uses: astral-sh/setup-uv@v6
+      - name: Install uv and set Python
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.pyver }}
           enable-cache: true
 
       - name: Verify CUDA
-        run: nvcc -V
+        run: |
+          nvcc --version
+          echo "CUDA path: $CUDA_HOME"
 
       - name: Build wheel
         env:
           VERBOSE: 1
-          LD_LIBRARY_PATH: /usr/local/cuda/lib64:/usr/local/cuda/compat:${LD_LIBRARY_PATH}
-          CUDA_HOME: /usr/local/cuda
-          CUDA_TOOLKIT_ROOT_DIR: /usr/local/cuda
           CMAKE_ARGS: >-
             -DGGML_CUDA=on
             -DCMAKE_CUDA_ARCHITECTURES=75;80;86;89;90
             -DGGML_CUDA_FORCE_MMQ=OFF
             -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off
-            -DLLAMA_CURL=off -DLLAMA_OPENSSL=on -DLLAMA_HTTPLIB=on
         run: |
           uv pip install --system build setuptools wheel packaging
           uv build --wheel
 
-          # Rename wheel to standard format: +cuXXX.basic
-          cuda_short="${CUDASHORT#cu}"
+          # Rename wheel to +cuXXX.basic
           wheel_file=$(ls dist/*.whl | head -n 1)
           filename=$(basename "$wheel_file")
-          IFS='-' read -r name version py_tag abi_tag plat_tag <<< "$filename"
-          new_version="${version}+cu${cuda_short}.basic"
-          new_filename="${name}-${new_version}-${py_tag}-${abi_tag//.*/}-${plat_tag}"
+          name=$(echo "$filename" | cut -d- -f1)
+          version=$(echo "$filename" | cut -d- -f2)
+          rest=$(echo "$filename" | cut -d- -f3-)
+          new_version="${version}+${CUDA_SHORT}.basic"
+          new_filename="${name}-${new_version}-${rest}"
           mv "$wheel_file" "dist/$new_filename"
-          echo "Renamed to $new_filename"
+          echo "Renamed wheel to $new_filename"
 
       - name: List built wheels
         run: ls -lh dist/*.whl
