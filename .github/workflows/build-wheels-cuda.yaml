@@ -1,129 +1,121 @@
 name: Build Wheels (CUDA)
 
-on: workflow_dispatch
-
-permissions:
-  contents: write
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
 
 jobs:
-  define_matrix:
-    name: Define Build Matrix
-    runs-on: ubuntu-22.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    defaults:
-      run:
-        shell: pwsh
-
-    steps:
-      - name: Define Job Output
-        id: set-matrix
-        run: |
-          $matrix = @{
-              'os' = @('ubuntu-22.04') #, 'windows-2022')
-              'pyver' = @("3.9", "3.10", "3.11", "3.12")
-              'cuda' = @("12.1.1", "12.2.2", "12.3.2", "12.4.1") #, "12.5.1", "12.6.1")
-              'releasetag' = @("basic")
-          }
-
-          $matrixOut = ConvertTo-Json $matrix -Compress
-          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
-
-  build_wheels:
-    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
-    needs: define_matrix
-    runs-on: ${{ matrix.os }}
+  build-cuda:
+    runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
-    defaults:
-      run:
-        shell: pwsh
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.9"
+            cuda: "12.1.1"
+            short: cu121
+          - python-version: "3.10"
+            cuda: "12.1.1"
+            short: cu121
+          - python-version: "3.11"
+            cuda: "12.1.1"
+            short: cu121
+          - python-version: "3.12"
+            cuda: "12.1.1"
+            short: cu121
+          - python-version: "3.9"
+            cuda: "12.2.2"
+            short: cu122
+          - python-version: "3.10"
+            cuda: "12.2.2"
+            short: cu122
+          - python-version: "3.11"
+            cuda: "12.2.2"
+            short: cu122
+          - python-version: "3.12"
+            cuda: "12.2.2"
+            short: cu122
+          - python-version: "3.9"
+            cuda: "12.3.2"
+            short: cu123
+          - python-version: "3.10"
+            cuda: "12.3.2"
+            short: cu123
+          - python-version: "3.11"
+            cuda: "12.3.2"
+            short: cu123
+          - python-version: "3.12"
+            cuda: "12.3.2"
+            short: cu123
+          - python-version: "3.9"
+            cuda: "12.4.1"
+            short: cu124
+          - python-version: "3.10"
+            cuda: "12.4.1"
+            short: cu124
+          - python-version: "3.11"
+            cuda: "12.4.1"
+            short: cu124
+          - python-version: "3.12"
+            cuda: "12.4.1"
+            short: cu124
+
     env:
       CUDAVER: ${{ matrix.cuda }}
-      AVXVER: ${{ matrix.releasetag }}
 
     steps:
-      - name: Add MSBuild to PATH
-        if: runner.os == 'Windows'
-        uses: microsoft/setup-msbuild@v2
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
-          vs-version: '[16.11,16.12)'
+          submodules: recursive
 
-      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          submodules: "recursive"
+          enable-cache: true
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.pyver }}
-          cache: 'pip'
+          python-version: ${{ matrix.python-version }}
 
-      - name: Setup Mamba
-        uses: conda-incubator/setup-miniconda@v3.1.0
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: "llamacpp"
-          python-version: ${{ matrix.pyver }}
+          activate-environment: llamacpp
+          python-version: ${{ matrix.python-version }}
           miniforge-version: latest
           add-pip-as-python-dependency: true
           auto-activate-base: false
 
-      - name: VS Integration Cache
-        id: vs-integration-cache
-        if: runner.os == 'Windows'
-        uses: actions/cache@v5
-        with:
-          path: ./MSBuildExtensions
-          key: cuda-${{ matrix.cuda }}-vs-integration
-
-      - name: Get Visual Studio Integration
-        if: runner.os == 'Windows' && steps.vs-integration-cache.outputs.cache-hit != 'true'
-        run: |
-          if ($env:CUDAVER -eq '12.1.1') {$x = '12.1.0'} else {$x = $env:CUDAVER}
-          $links = (Invoke-RestMethod 'https://raw.githubusercontent.com/Jimver/cuda-toolkit/master/src/links/windows-links.ts').Trim().split().where({$_ -ne ''})
-          for ($i=$q=0;$i -lt $links.count -and $q -lt 2;$i++) {if ($links[$i] -eq "'$x',") {$q++}}
-          Invoke-RestMethod $links[$i].Trim("'") -OutFile 'cudainstaller.zip'
-          & 'C:\Program Files\7-Zip\7z.exe' e cudainstaller.zip -oMSBuildExtensions -r *\MSBuildExtensions\* > $null
-          Remove-Item 'cudainstaller.zip'
-
-      - name: Install Visual Studio Integration
-        if: runner.os == 'Windows'
-        run: |
-          $y = (gi '.\MSBuildExtensions').fullname + '\*'
-          (gi 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\*\BuildCustomizations').fullname.foreach({cp $y $_})
-          $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
-          echo "$cupath=$env:CONDA_PREFIX" >> $env:GITHUB_ENV
-
-      - name: Install Dependencies
+      - name: Install CUDA toolkit and build tools
+        shell: bash
         env:
           MAMBA_DOWNLOAD_FAILFAST: "0"
           MAMBA_NO_LOW_SPEED_LIMIT: "1"
         run: |
-          $cudaVersion = $env:CUDAVER
-          mamba install -y 'cuda' -c nvidia/label/cuda-$cudaVersion
-          python -m pip install build wheel cmake
-          python -m pip install --upgrade cmake
-          
-      - name: Build Wheel
-        # Diusabled -DGGML_CUDA_FORCE_MMQ due to issues with Blackwell GPUs
+          mamba install -y 'cuda' -c nvidia/label/cuda-${CUDAVER}
+          uv pip install --system -U build wheel cmake
+
+      - name: Build wheel (CUDA ${{ matrix.short }})
+        shell: bash
         run: |
-          $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
-          $env:CUDA_PATH = $env:CONDA_PREFIX
-          $env:CUDA_HOME = $env:CONDA_PREFIX
-          $env:CUDA_TOOLKIT_ROOT_DIR = $env:CONDA_PREFIX
-          if ($IsLinux) {
-            $env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH
-          }
-          $env:VERBOSE = '1'
-          $env:CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=75;80;86;89;90 -DGGML_CUDA_FORCE_MMQ=OFF"
-          # if ($env:AVXVER -eq 'AVX') {
-          $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off'
-          # }
-          # if ($env:AVXVER -eq 'AVX512') {
-          #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX512=on'
-          # }
-          # if ($env:AVXVER -eq 'basic') {
-          #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off'
-          # }
-          python -m build --wheel
-          # write the build tag to the output
-          Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
+          export CUDA_PATH=$CONDA_PREFIX
+          export CUDA_HOME=$CONDA_PREFIX
+          export CUDA_TOOLKIT_ROOT_DIR=$CONDA_PREFIX
+          export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+          export VERBOSE=1
+          export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=75;80;86;89;90 -DGGML_CUDA_FORCE_MMQ=OFF -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off"
+          python -m build --wheel --outdir wheelhouse
+
+      - name: List built wheels
+        shell: bash
+        run: |
+          ls -lh wheelhouse/*.whl
+
+      - name: Upload wheels as artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheel-cuda-${{ matrix.python-version }}-${{ matrix.short }}
+          path: wheelhouse/*.whl
