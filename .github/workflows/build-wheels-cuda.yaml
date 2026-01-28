@@ -44,7 +44,7 @@ jobs:
     steps:
       - name: Install system dependencies
         run: |
-          apt update && apt install -y build-essential cmake git python3-pip libssl-dev
+          apt update && apt install -y build-essential cmake git python3-pip libssl-dev software-properties-common
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,9 +57,16 @@ jobs:
           python-version: ${{ matrix.pyver }}
           enable-cache: true
 
-      - name: Verify CUDA
+      - name: Verify environment
         run: |
+          python --version
+          uv --version
+          which python
           nvcc --version
+
+      - name: Install build dependencies
+        run: |
+          uv pip install build wheel setuptools packaging
 
       - name: Build wheel
         env:
@@ -70,7 +77,6 @@ jobs:
             -DGGML_CUDA_FORCE_MMQ=OFF
             -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off
         run: |
-          uv pip install --system build wheel setuptools packaging
           python -m build --wheel
 
       - name: List wheels
