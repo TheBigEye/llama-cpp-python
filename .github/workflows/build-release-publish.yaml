@@ -351,7 +351,7 @@ jobs:
                   f.write(f'    <h1>Links for {package_name}</h1>\n')
                   for wheel in wheels:
                       url = f"https://github.com/{repo}/releases/download/{tag}/{wheel}"
-                      f.write(f'    <a href="{url}#sha256=placeholder">{wheel}</a><br/>\n')
+                      f.write(f'    <a href="{url}">{wheel}</a><br/>\n')
                   f.write('</body></html>\n')
 
               print(f"Generated index for {info['label']} ({len(wheels)} wheels)")
