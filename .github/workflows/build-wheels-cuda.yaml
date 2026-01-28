@@ -9,132 +9,73 @@ permissions:
 jobs:
   build_linux:
     runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:${{ matrix.cuda_config.ver }}-devel-ubuntu22.04
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - pyver: "3.9"
-            cuda: "12.1.1"
+        cuda_config:
+          - ver: 12.1.1
             short: cu121
             arch: 75;80;86;89;90
-          - pyver: "3.10"
-            cuda: "12.1.1"
-            short: cu121
-            arch: 75;80;86;89;90
-          - pyver: "3.11"
-            cuda: "12.1.1"
-            short: cu121
-            arch: 75;80;86;89;90
-          - pyver: "3.12"
-            cuda: "12.1.1"
-            short: cu121
-            arch: 75;80;86;89;90
-          - pyver: "3.9"
-            cuda: "12.2.2"
+          - ver: 12.2.2
             short: cu122
             arch: 75;80;86;89;90
-          - pyver: "3.10"
-            cuda: "12.2.2"
-            short: cu122
-            arch: 75;80;86;89;90
-          - pyver: "3.11"
-            cuda: "12.2.2"
-            short: cu122
-            arch: 75;80;86;89;90
-          - pyver: "3.12"
-            cuda: "12.2.2"
-            short: cu122
-            arch: 75;80;86;89;90
-          - pyver: "3.9"
-            cuda: "12.3.2"
+          - ver: 12.3.2
             short: cu123
             arch: 75;80;86;89;90
-          - pyver: "3.10"
-            cuda: "12.3.2"
-            short: cu123
-            arch: 75;80;86;89;90
-          - pyver: "3.11"
-            cuda: "12.3.2"
-            short: cu123
-            arch: 75;80;86;89;90
-          - pyver: "3.12"
-            cuda: "12.3.2"
-            short: cu123
-            arch: 75;80;86;89;90
-          - pyver: "3.9"
-            cuda: "12.4.1"
+          - ver: 12.4.1
             short: cu124
             arch: 75;80;86;89;90
-          - pyver: "3.10"
-            cuda: "12.4.1"
-            short: cu124
-            arch: 75;80;86;89;90
-          - pyver: "3.11"
-            cuda: "12.4.1"
-            short: cu124
-            arch: 75;80;86;89;90
-          - pyver: "3.12"
-            cuda: "12.4.1"
-            short: cu124
-            arch: 75;80;86;89;90
-    name: Linux CUDA ${{ matrix.cuda }} Py ${{ matrix.pyver }}
-    env:
-      CUDAVER: ${{ matrix.cuda }}
-
+        pyver: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    name: Linux CUDA ${{ matrix.cuda_config.ver }} Py ${{ matrix.pyver }}
     steps:
+      - name: Install system deps and deadsnakes PPA
+        run: |
+          apt update && apt install -y software-properties-common git curl build-essential cmake libssl-dev
+          add-apt-repository ppa:deadsnakes/ppa -y
+          apt update
+          apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev python${{ matrix.pyver }}-distutils python${{ matrix.pyver }}-venv
+
+      - name: Set Python symlink and install pip + uv
+        run: |
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${{ matrix.pyver }} 1
+          update-alternatives --install /usr/bin/python python /usr/bin/python${{ matrix.pyver }} 1
+          curl https://bootstrap.pypa.io/get-pip.py | python
+          python -m pip install --upgrade uv
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup uv and Python
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ matrix.pyver }}
-          enable-cache: true
-
-      - name: Setup Miniconda and Mamba
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          activate-environment: llamacpp
-          python-version: ${{ matrix.pyver }}
-          miniforge-version: latest
-          auto-activate-base: false
-
-      - name: Install CUDA toolkit via Mamba
-        shell: bash -l {0}
+      - name: Verify CUDA and Python
         run: |
-          mamba install -y -c nvidia/label/cuda-${{ matrix.cuda }} cuda
+          python --version
+          uv --version
+          nvcc --version
+          nvidia-smi || true
 
-      - name: Install build tools
-        shell: bash -l {0}
-        run: |
-          uv pip install build wheel cmake setuptools packaging
-          uv pip install --upgrade cmake
+      - name: Install build dependencies
+        run: uv pip install build wheel setuptools packaging cmake
 
       - name: Build wheel
-        shell: bash -l {0}
         env:
           VERBOSE: 1
           CMAKE_ARGS: >-
             -DGGML_CUDA=on
-            -DCMAKE_CUDA_ARCHITECTURES=${{ matrix.arch }}
+            -DCMAKE_CUDA_ARCHITECTURES=${{ matrix.cuda_config.arch }}
             -DGGML_CUDA_FORCE_MMQ=OFF
             -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off
-          CUDA_PATH: ${{ steps.conda.outputs.conda-prefix }}
-          CUDA_HOME: ${{ steps.conda.outputs.conda-prefix }}
-          CUDA_TOOLKIT_ROOT_DIR: ${{ steps.conda.outputs.conda-prefix }}
-          LD_LIBRARY_PATH: ${{ steps.conda.outputs.conda-prefix }}/lib:${{ env.LD_LIBRARY_PATH }}
-        run: |
-          python -m build --wheel
+        run: python -m build --wheel
 
-      - name: List wheels
+      - name: List wheels (check for +cu tag)
         run: ls -lh dist/*.whl
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-cuda-${{ matrix.pyver }}-${{ matrix.short }}
+          name: wheel-cuda-${{ matrix.pyver }}-${{ matrix.cuda_config.short }}
           path: dist/*.whl
 
   build_windows:
