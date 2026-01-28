@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: Install system deps (including cmake) and deadsnakes PPA
         run: |
+          echo "tzdata tzdata/Areas select America" | debconf-set-selections
+          echo "tzdata tzdata/Zones/America select New_York" | debconf-set-selections
+          ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+
           apt update && apt install -y software-properties-common git curl build-essential cmake libssl-dev
           add-apt-repository ppa:deadsnakes/ppa -y
           apt update
