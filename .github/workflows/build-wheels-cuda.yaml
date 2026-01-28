@@ -30,7 +30,7 @@ jobs:
         pyver: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     name: Linux CUDA ${{ matrix.cuda_config.ver }} Py ${{ matrix.pyver }}
     steps:
-      - name: Install system deps (including cmake) and deadsnakes PPA
+      - name: Install system dependencies
         run: |
           echo "tzdata tzdata/Areas select America" | debconf-set-selections
           echo "tzdata tzdata/Zones/America select New_York" | debconf-set-selections
@@ -39,7 +39,12 @@ jobs:
           apt update && apt install -y software-properties-common git curl build-essential cmake libssl-dev
           add-apt-repository ppa:deadsnakes/ppa -y
           apt update
-          apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev
+
+          if [[ "${{ matrix.pyver }}" == "3.9" ]]; then
+            apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev python${{ matrix.pyver }}-distutils
+          else
+            apt install -y python${{ matrix.pyver }} python${{ matrix.pyver }}-dev
+          fi
 
       - name: Set Python symlink and install pip + uv
         run: |
@@ -62,7 +67,7 @@ jobs:
           nvcc --version
           nvidia-smi || true
 
-      - name: Install build dependencies (using --system)
+      - name: Install build dependencies
         run: |
           uv pip install --system build wheel setuptools packaging
 
@@ -131,7 +136,7 @@ jobs:
         run: git config --system core.longpaths true
 
       - name: Install build tools
-        run: uv pip install build wheel cmake setuptools packaging
+        run: uv pip install --system build wheel cmake setuptools packaging
 
       - name: Build wheel
         env:
